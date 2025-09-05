@@ -1,15 +1,33 @@
+import { db } from '../db';
+import { chatSessionsTable, usersTable } from '../db/schema';
 import { type CreateChatSessionInput, type ChatSession } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const createChatSession = async (input: CreateChatSessionInput): Promise<ChatSession> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new chat session for a user.
-    // Chat sessions help organize conversations and provide context for memory formation.
-    // The Kuration Agent can analyze entire sessions to extract meaningful memories.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+  try {
+    // Verify user exists to prevent foreign key constraint violations
+    const user = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, input.user_id))
+      .limit(1)
+      .execute();
+
+    if (user.length === 0) {
+      throw new Error(`User with id ${input.user_id} not found`);
+    }
+
+    // Insert chat session record
+    const result = await db.insert(chatSessionsTable)
+      .values({
         user_id: input.user_id,
-        title: input.title || null,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as ChatSession);
+        title: input.title || null
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Chat session creation failed:', error);
+    throw error;
+  }
 };

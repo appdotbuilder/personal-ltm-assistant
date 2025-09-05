@@ -1,21 +1,41 @@
+import { db } from '../db';
+import { memoriesTable, usersTable } from '../db/schema';
 import { type CreateMemoryInput, type Memory } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const createMemory = async (input: CreateMemoryInput): Promise<Memory> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new memory entry in the LTM system.
-    // This would typically be called by the Kuration Agent when processing conversations
-    // to extract and store important information, events, preferences, or emotional states.
-    // Should validate the embedding vector and store it with proper indexing for semantic search.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+  try {
+    // Verify that the user exists before creating the memory
+    const userExists = await db.select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.id, input.user_id))
+      .execute();
+
+    if (userExists.length === 0) {
+      throw new Error(`User with id ${input.user_id} does not exist`);
+    }
+
+    // Insert memory record
+    const result = await db.insert(memoriesTable)
+      .values({
         user_id: input.user_id,
         embedding: input.embedding,
         memory_type: input.memory_type,
         summary: input.summary,
         full_text: input.full_text,
         details: input.details || null,
-        confidence_score: input.confidence_score || null,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Memory);
+        confidence_score: input.confidence_score || null
+      })
+      .returning()
+      .execute();
+
+    const memory = result[0];
+    return {
+      ...memory,
+      details: memory.details as Record<string, any> | null
+    };
+  } catch (error) {
+    console.error('Memory creation failed:', error);
+    throw error;
+  }
 };

@@ -1,7 +1,23 @@
+import { db } from '../db';
+import { memoriesTable } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
+
 export const deleteMemory = async (memoryId: number, userId: number): Promise<boolean> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is deleting a specific memory from the LTM system.
-    // Should verify that the memory belongs to the requesting user for security.
-    // Used in the Memory Dashboard for memory management functionality.
-    return Promise.resolve(true);
+  try {
+    // Delete memory only if it belongs to the requesting user (security check)
+    const result = await db.delete(memoriesTable)
+      .where(
+        and(
+          eq(memoriesTable.id, memoryId),
+          eq(memoriesTable.user_id, userId)
+        )
+      )
+      .execute();
+
+    // Check if any row was actually deleted
+    return (result.rowCount ?? 0) > 0;
+  } catch (error) {
+    console.error('Memory deletion failed:', error);
+    throw error;
+  }
 };
